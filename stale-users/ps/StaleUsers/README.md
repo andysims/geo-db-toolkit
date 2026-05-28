@@ -6,9 +6,8 @@ Installation
 
 Place the module files in a folder named StaleUsers:
 
-StaleUsers\
-    StaleUsers.psm1
-    .env
+StaleUsers
+StaleUsers.psm1 .env
 
 Importing the Module
 
@@ -30,14 +29,11 @@ Parameters
 
 Examples
 
-1. Get stale users from Portal
-
+Get stale users from Portal
 Get-StaleArcGISUsers -Source portal
 
-2. Get stale users from AGOL and export summary + classified CSVs
-
+Get stale users from AGOL and export summary + classified CSVs
 Get-StaleArcGISUsers -Source agol -ExportPath ./out
 
-3. Export only the raw stale user list
-
+Export only the raw stale user list
 Get-StaleArcGISUsers -Source portal -ExportCsv
