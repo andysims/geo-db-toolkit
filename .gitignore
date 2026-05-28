@@ -1,0 +1,35 @@
+# Environment Variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# PowerShell Generated & Compiled Files
+*.ps1xml.asc
+*.dll
+*.exe
+*.pdb
+
+# Compiled Scripts (if using tools to package scripts)
+*.compiled.ps1
+
+# Editor & IDE Directories
+.vscode/
+.idea/
+
+# PowerShell PSScriptAnalyzer cache
+*.psd1.cache
+*.psm1.cache
+
+# OS Caches (Windows)
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Temporary & Backup Files
+*.bak
+*.tmp
+*~
+*.swp
