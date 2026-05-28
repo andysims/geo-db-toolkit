@@ -2,14 +2,14 @@ param(
     [switch]$SearchGroup,
     [switch]$CreateGroup,
 
-    [string]$Source = "portal",  # portal or agol
+    [string]$Source = "portal",
     [string]$Name,
     [string]$ID,
     [string]$Description,
     [string]$Thumbnail,
 
     [switch]$ExportCsv,
-    [string]$ExportPath = "./group_members_export.csv"
+    [string]$ExportPath = $null
 )
 
 # ----------------------------------------------------
@@ -58,7 +58,7 @@ if (-not $tokenResponse.token) {
 $Token = $tokenResponse.token
 
 # ----------------------------------------------------
-# PORTAL SELF (GET ORG ID)
+# PORTAL SELF
 # ----------------------------------------------------
 $portalSelf = Invoke-RestMethod -Method Get -Uri "$BaseUrl/sharing/rest/portals/self" -Body @{
     f="json"
@@ -70,6 +70,7 @@ $OrgId = $portalSelf.id
 # ----------------------------------------------------
 # HELPERS
 # ----------------------------------------------------
+
 function Get-GroupById($gid) {
     Invoke-RestMethod -Method Get -Uri "$BaseUrl/sharing/rest/community/groups/$gid" -Body @{
         f="json"; token=$Token
@@ -84,22 +85,68 @@ function Search-GroupsByName($groupName) {
     }
 }
 
+# Portal 11.3 returns ONLY usernames (owner/admins/users)
 function Get-GroupUsers($gid) {
-    # MUST use real "&", not "&amp;"
-    $uri = "$BaseUrl/sharing/rest/community/groups/$gid/users?f=json&token=$Token&showUserProfiles=true"
-    return Invoke-RestMethod -Uri $uri -Method Get
+    $uri = "$BaseUrl/sharing/rest/community/groups/$gid/users"
+    $body = @{
+        f                = "json"
+        token            = $Token
+        showUserProfiles = "true"
+        includeProfiles  = "true"
+        includeInactive  = "true"
+    }
+    return Invoke-RestMethod -Uri $uri -Method Post -Body $body
 }
 
+# Profile fetch (with fallback protection)
 function Get-UserProfile($username) {
-    $uri = "$BaseUrl/sharing/rest/community/users/$username?f=json&token=$Token"
-    return Invoke-RestMethod -Uri $uri -Method Get
+
+    $uri = "$BaseUrl/sharing/rest/community/users/$username"
+    $body = @{
+        f = "json"
+        token = $Token
+    }
+
+    try {
+        $response = Invoke-RestMethod -Uri $uri -Method Post -Body $body -ErrorAction Stop
+
+        # HTML → fallback to blank profile
+        if ($response -is [string] -and $response -match "<html") {
+            return @{
+                username = $username
+                fullName = $username
+                created = $null
+                lastLogin = $null
+                email = ""
+                idpUsername = ""
+                userLicenseType = ""
+            }
+        }
+
+        return $response
+    }
+    catch {
+        return @{
+            username = $username
+            fullName = $username
+            created = $null
+            lastLogin = $null
+            email = ""
+            idpUsername = ""
+            userLicenseType = ""
+        }
+    }
 }
 
 function Format-Epoch($ms) {
     if ($ms -and $ms -gt 0) {
         return ([datetime]'1970-01-01').AddMilliseconds($ms).ToString("MM/dd/yyyy hh:mm:ss tt")
     }
-    return "Never"
+    return ""
+}
+
+function Clean-FileName([string]$text) {
+    return ($text -replace '[^\w\- ]','').Trim()
 }
 
 
@@ -115,22 +162,16 @@ if ($SearchGroup) {
 
     $group = $null
 
-    # -------------------------------------------
-    # BY ID
-    # -------------------------------------------
     if ($ID) {
-        $full = Get-GroupById $ID
-        if ($full.error) {
+        $group = Get-GroupById $ID
+        if ($group.error) {
             Write-Host "Group not found."
             exit
         }
-        $group = $full
     }
 
-    # -------------------------------------------
-    # BY NAME (partial)
-    # -------------------------------------------
     if ($Name) {
+
         $results = Search-GroupsByName $Name
         $matches = $results.results
 
@@ -139,137 +180,158 @@ if ($SearchGroup) {
             exit
         }
         elseif ($matches.Count -eq 1) {
-            $group = $matches[0]
+            $group = Get-GroupById $matches[0].id
         }
         else {
             Write-Host "Multiple groups found:"
             for ($i=0; $i -lt $matches.Count; $i++) {
                 Write-Host "$i) $($matches[$i].title) | ID: $($matches[$i].id)"
             }
-
-            if ($ExportCsv) {
-                Write-Host ""
-                Write-Host "CSV export deferred — select ONE group first."
-            }
-
             $choice = Read-Host "Choose a group by number"
-            $group = $matches[$choice]
+            $group = Get-GroupById $matches[$choice].id
         }
     }
 
-    # ------------------------------------------------
-    # FETCH GROUP DETAILS + USERS
-    # ------------------------------------------------
-    $fullGroup = Get-GroupById $group.id
-    $usersObj  = Get-GroupUsers $group.id
+    # -------------------------------------------------
+    # Fetch usernames only (Portal returns strings)
+    # -------------------------------------------------
+    $usersObj = Get-GroupUsers $group.id
+    # Write-Host "==== RAW USERSOBJ RESPONSE ====" -ForegroundColor Yellow
+    # $usersObj | ConvertTo-Json -Depth 10 | Write-Host
+    # Write-Host "================================" -ForegroundColor Yellow
 
-    $owner  = $fullGroup.owner
-    $admins = $usersObj.admins
-    $users  = $usersObj.users
+    $ownerUsername = $usersObj.owner
+    $adminUsernames = $usersObj.admins
+    $memberUsernames = $usersObj.users
 
-    # ------------------------------------------------
-    # PRINT OUTPUT
-    # ------------------------------------------------
-    $createdDate = ([datetime]'1970-01-01').AddMilliseconds($fullGroup.created)
-    $createdStr  = $createdDate.ToString("MM/dd/yyyy hh:mm:ss tt")
+    $totalMembers = 1 + $adminUsernames.Count + $memberUsernames.Count
 
-    Write-Host ""
-    Write-Host "============================="
-    Write-Host " Group Information"
-    Write-Host "============================="
-    Write-Host "Name:        $($fullGroup.title)"
-    Write-Host "ID:          $($fullGroup.id)"
-    Write-Host "Created:     $createdStr"
-    Write-Host ""
+    # Get owner full profile
+    $ownerProfile = Get-UserProfile $ownerUsername
 
-    Write-Host "Owner:"
-    Write-Host " - $owner"
-    Write-Host ""
 
-    Write-Host "Managers:"
-    if ($admins.Count -gt 0) {
-        foreach ($a in $admins) { Write-Host " - $a" }
-    } else {
-        Write-Host " - None"
+    # ----------------------------------------------------
+    # GROUP CONTENT COUNT
+    # ----------------------------------------------------
+    $contentCount = 0
+    try {
+        $contentResp = Invoke-RestMethod -Method Get -Uri "$BaseUrl/sharing/rest/content/groups/$($group.id)" -Body @{
+            f = "json"
+            token = $Token
+        }
+        $contentCount = ($contentResp.items | Measure-Object).Count
     }
-    Write-Host ""
-
-    Write-Host "Members:"
-    if ($users.Count -gt 0) {
-        foreach ($u in $users) { Write-Host " - $u" }
-    } else {
-        Write-Host " - None"
+    catch {
+        Write-Warning "Could not retrieve group content count."
     }
+
+    # ----------------------------------------------------
+    # PRINT SUMMARY (your required formatting)
+    # ----------------------------------------------------
+    $createdString = Format-Epoch $group.created
+
+    Write-Host ""
+    Write-Host "=============================" -ForegroundColor Cyan
+    Write-Host " Group Information" -ForegroundColor Cyan
+    Write-Host "=============================" -ForegroundColor Cyan
+    Write-Host "Name              : $($group.title)"
+    Write-Host "ID                : $($group.id)"
+    Write-Host "Created           : $createdString"
+    Write-Host "Group Members     : $totalMembers" -ForegroundColor Green
+    Write-Host "Group Content     : $contentCount items" -ForegroundColor Green
+    Write-Host ""
+    Write-Host "Owner    : $ownerUsername"
+    Write-Host "Members  : $($memberUsernames.Count)"
     Write-Host ""
 
 
-    # ------------------------------------------------
-    # EXPORT TO CSV
-    # ------------------------------------------------
+    # ----------------------------------------------------
+    # USER PROFILE FETCH (required because Portal returns only usernames)
+    # ----------------------------------------------------
+    $userProfiles = @()
+
+    # Owner
+    $userProfiles += [PSCustomObject]@{
+        Username   = $ownerProfile.username
+        FullName   = $ownerProfile.fullName
+        MemberType = "owner"
+        Joined     = ""
+        Created    = Format-Epoch $ownerProfile.created
+        LastLogin  = Format-Epoch $ownerProfile.lastLogin
+        Email      = $ownerProfile.email
+        IdpUsername = $ownerProfile.idpUsername
+        UserLicenseType = $ownerProfile.userLicenseType
+    }
+
+    # Admins
+    foreach ($u in $adminUsernames) {
+        if ($u -eq $ownerUsername) { continue } # skip owner duplicate
+
+        $p = Get-UserProfile $u
+
+        $userProfiles += [PSCustomObject]@{
+            Username   = $p.username
+            FullName   = $p.fullName
+            MemberType = "admin"
+            Joined     = ""
+            Created    = Format-Epoch $p.created
+            LastLogin  = Format-Epoch $p.lastLogin
+            Email      = $p.email
+            IdpUsername = $p.idpUsername
+            UserLicenseType = $p.userLicenseType
+        }
+    }
+
+    # Members
+    foreach ($u in $memberUsernames) {
+        $p = Get-UserProfile $u
+
+        $userProfiles += [PSCustomObject]@{
+            Username   = $p.username
+            FullName   = $p.fullName
+            MemberType = "member"
+            Joined     = Format-Epoch $p.created
+            Created    = Format-Epoch $p.created
+            LastLogin  = Format-Epoch $p.lastLogin
+            Email      = $p.email
+            IdpUsername = $p.idpUsername
+            UserLicenseType = $p.userLicenseType
+        }
+    }
+
+
+    # ----------------------------------------------------
+    # EXPORT CSV FILES (both)
+    # ----------------------------------------------------
     if ($ExportCsv) {
 
-        if (-not $group.id) {
-            Write-Host "ERROR: No single group selected. CSV export aborted."
-            exit
-        }
+        $safeTitle = Clean-FileName $group.title
+        $dateTag   = (Get-Date).ToString("yyyyMMdd")
 
-        $export = @()
+        $minimalPath = "${safeTitle}_${dateTag}_minimal.csv"
+        $fullPath    = "${safeTitle}_${dateTag}_full.csv"
 
-        function Add-UserRow($username, $role) {
-            try {
-                $profile = Get-UserProfile $username
-            }
-            catch {
-                # If profile is not accessible, fallback
-                $profile = @{
-                    fullName = ""
-                    email = ""
-                    created = $null
-                    lastLogin = $null
-                    userLicenseType = ""
-                    idpUsername = ""
-                }
-            }
+        # MINIMAL CSV
+        $userProfiles |
+            Select-Object Username, FullName, MemberType, Joined |
+            Export-Csv -Path $minimalPath -NoTypeInformation
 
-            $created   = Format-Epoch $profile.created
-            $lastLogin = Format-Epoch $profile.lastLogin
+        # FULL CSV
+        $userProfiles |
+            Export-Csv -Path $fullPath -NoTypeInformation
 
-            $export += [PSCustomObject]@{
-                Username        = $username
-                FullName        = $profile.fullName
-                Email           = $profile.email
-                Role            = $role
-                Created         = $created
-                LastLogin       = $lastLogin
-                UserLicenseType = $profile.userLicenseType
-                IdpUsername     = $profile.idpUsername
-            }
-        }
-
-        # Add owner
-        Add-UserRow $owner "Owner"
-
-        # Add managers
-        foreach ($m in $admins) {
-            Add-UserRow $m "Manager"
-        }
-
-        # Add members
-        foreach ($u in $users) {
-            Add-UserRow $u "Member"
-        }
-
-        $export | Export-Csv -Path $ExportPath -NoTypeInformation
-        Write-Host ""
-        Write-Host "Exported to: $ExportPath"
+        Write-Host "Exported Minimal CSV : $minimalPath" -ForegroundColor Green
+        Write-Host "Exported Full CSV    : $fullPath" -ForegroundColor Green
     }
 
     exit
 }
 
+
 # ----------------------------------------------------
-# CREATE GROUP MODE
+# CREATE GROUP MODE (unchanged)
 # ----------------------------------------------------
+
 if ($CreateGroup) {
 
     if (-not $Name) {
@@ -277,7 +339,6 @@ if ($CreateGroup) {
         exit
     }
 
-    # Avoid duplicates
     $existing = Search-GroupsByName $Name
 
     if ($existing.results.Count -gt 0) {
@@ -285,7 +346,6 @@ if ($CreateGroup) {
         foreach ($g in $existing.results) {
             Write-Host " - $($g.title) | ID: $($g.id)"
         }
-        Write-Host "Group not created."
         exit
     }
 
