@@ -199,8 +199,8 @@ function Get-StaleArcGISUsers {
     Write-Host "`nSummary Report" -ForegroundColor Cyan
     $summary | Format-Table -AutoSize
 
-    Write-Host "`nStale Users" -ForegroundColor Cyan
-    $Filtered | Format-Table Username, FullName, Email, LastLogin, DaysSinceLastLogin, StaleCategory -AutoSize
+    #Write-Host "`nStale Users" -ForegroundColor Cyan
+    #$Filtered | Format-Table Username, FullName, Email, LastLogin, DaysSinceLastLogin, StaleCategory -AutoSize
 
     # ---------------------------------------------------------
     # Optional exports
@@ -210,8 +210,8 @@ function Get-StaleArcGISUsers {
             New-Item -ItemType Directory -Path $ExportPath -Force | Out-Null
         }
 
-        $summary | Export-Csv -NoTypeInformation -Path (Join-Path $ExportPath "summary.csv")
-        $Filtered | Export-Csv -NoTypeInformation -Path (Join-Path $ExportPath "classified.csv")
+        $summary | Export-Csv -NoTypeInformation -Path (Join-Path $ExportPath "$Source_summary.csv")
+        $Filtered | Export-Csv -NoTypeInformation -Path (Join-Path $ExportPath "$Source_classified.csv")
 
         Write-Host "`nExported summary + classified CSVs to $ExportPath" -ForegroundColor Green
     }
