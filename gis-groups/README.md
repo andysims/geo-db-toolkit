@@ -2,7 +2,7 @@
 # gisGroups (PowerShell)
 
 This tool audits ArcGIS Online (AGOL) and ArcGIS Enterprise Portal groups using the ArcGIS REST API.  
-It retrieves group membership, user profiles, and detailed group statistics without requiring any Esri PowerShell modules.  
+It retrieves group membership, user profiles, and detailed group statistics (no Esri modules req.).  
 All connection settings are loaded from a `.env` file, making the tool portable and easy to automate.
 
 The script can be used interactively, as part of administrative workflows, or scheduled for regular audits.
@@ -82,8 +82,8 @@ Determines which credentials and URL to load from `.env`.
 
 **-ExportCsv**  
 Enables export of:
-- `groupExport_[title]_[yyyyMMdd]_minimal.csv`
-- `groupExport_[title]_[yyyyMMdd]_full.csv`
+- `[title]_[yyyyMMdd]_minimal.csv`
+- `[title]_[yyyyMMdd]_full.csv`
 
 **-ExportPath (optional)**  
 Directory to write CSV files to.  
@@ -103,17 +103,17 @@ Optional path to a thumbnail image to upload with the group.
 =============================
  Group Information
 =============================
-Name              : Fire - Fire Engineering Division
-ID                : 757c1f7809364c99a26c3aa0eab1c031
-Created           : 11/26/2025 07:22:23 PM
+Name              : Fire Department
+ID                : 12345678998765432112345678998765
+Created           : 01/01/2026 02:22:23 PM
 Group Members     : 12
 Group Content     : 6 items
 
-Owner    : CityOfPasadenaCAGIS
+Owner    : FireDeptChief
 Members  : 11
 
-Exported Minimal CSV : groupExport_FireEngineering_20260528_minimal.csv
-Exported Full CSV    : groupExport_FireEngineering_20260528_full.csv
+Exported Minimal CSV : Fire Department_20260528_minimal.csv
+Exported Full CSV    : Fire Department_20260528_full.csv
 ```
 
 ### **Minimal CSV Columns**
@@ -163,8 +163,6 @@ UserLicenseType
 
 ## Notes
 
-- No Esri modules required — pure REST API calls.
-- Robust against Portal environments that return only usernames for group members.
-- User profiles are fetched individually, ensuring complete and accurate reporting.
-- CSV exports are created automatically with safe filenames and timestamps.
-- Ideal for operational auditing, compliance checks, and administrative reporting.
+- No Esri modules required.
+- User profiles are fetched individually.
+- CSV exports are created automatically.
