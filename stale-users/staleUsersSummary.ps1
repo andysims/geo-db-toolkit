@@ -5,7 +5,7 @@ param(
     [string]$ExportPath  # optional output directory
 )
 
-# Validate CSV exists
+# Validating CSV
 if (-not (Test-Path $CsvPath)) {
     Write-Error "CSV file not found: $CsvPath"
     exit 1
@@ -14,10 +14,9 @@ if (-not (Test-Path $CsvPath)) {
 # Determine script directory (for default export path)
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 
-# Load CSV
 $users = Import-Csv $CsvPath
 
-# Parse LastLogin and compute days since last login
+# Parsing LastLogin and compute days since last login
 foreach ($u in $users) {
 
     if ($u.LastLogin -and $u.LastLogin -ne "Never") {
@@ -34,7 +33,7 @@ foreach ($u in $users) {
 
 $now = Get-Date
 
-# Classify users
+# Classifying users based on last login
 foreach ($u in $users) {
 
     if (-not $u.LastLoginDate) {
@@ -59,13 +58,12 @@ foreach ($u in $users) {
     }
 }
 
-# Buckets
+# Category Buckets
 $never       = $users | Where-Object { $_.StaleCategory -eq "Never logged in" }
 $oneYear     = $users | Where-Object { $_.StaleCategory -eq "1 year since last login" }
 $oneHalfToTwo = $users | Where-Object { $_.StaleCategory -eq "1.5 to 2 years since last login" }
 $moreThanTwo  = $users | Where-Object { $_.StaleCategory -eq "More than 2 years since last login" }
 
-# Summary with percentages
 $total = $users.Count
 
 $summary = @(
@@ -89,9 +87,7 @@ $summary = @(
         Count    = $moreThanTwo.Count
         Percent  = if ($total -gt 0) { "{0:P1}" -f ($moreThanTwo.Count / $total) } else { "0%" }
     }
-    # ---------------------
-    # TOTAL ROW (added back)
-    # ---------------------
+
     [PSCustomObject]@{
         Category = "Total"
         Count    = $total
@@ -119,18 +115,15 @@ $oneHalfToTwo | Select-Object Username, FullName, Email, LastLogin, DaysSinceLas
 Write-Host "`nMore than 2 years since last login:" -ForegroundColor Yellow
 $moreThanTwo | Select-Object Username, FullName, Email, LastLogin, DaysSinceLastLogin | Format-Table -AutoSize
 
-# -----------------------------
-# Optional Exports (TWO FILES)
-# -----------------------------
+
+# Optional Exports: Two files
 if ($ExportPath) {
 
-    # Ensure directory exists
     if (-not (Test-Path $ExportPath)) {
         Write-Host "Export directory does not exist. Creating: $ExportPath" -ForegroundColor Yellow
         New-Item -ItemType Directory -Path $ExportPath -Force | Out-Null
     }
 
-    # Input filename without extension
     $inputName = [IO.Path]::GetFileNameWithoutExtension($CsvPath)
 
     # 1. Summary file

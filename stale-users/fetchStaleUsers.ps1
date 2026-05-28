@@ -45,9 +45,9 @@ if (-not $Token) {
     exit 1
 }
 
-# -------------------------
-# PAGINATION FOR LARGE ORGS
-# -------------------------
+# ----------
+# PAGINATION
+# ----------
 $AllUsers = @()
 $start = 1
 
@@ -71,7 +71,7 @@ while ($true) {
     $start = $page.nextStart
 }
 
-# Filter stale enterprise users
+# Filters stale users
 $cutoff = (Get-Date).AddYears(-1)
 
 Write-Host "Fetching users...`n"
