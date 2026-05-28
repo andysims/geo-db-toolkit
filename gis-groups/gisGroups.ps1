@@ -12,9 +12,9 @@ param(
     [string]$ExportPath = $null
 )
 
-# ----------------------------------------------------
+# ----------
 # LOAD .ENV
-# ----------------------------------------------------
+# ----------
 $envData = @{ }
 
 Get-Content -Path "$PSScriptRoot\.env" |
@@ -39,9 +39,9 @@ else {
     exit
 }
 
-# ----------------------------------------------------
+# -----------------
 # TOKEN GENERATION
-# ----------------------------------------------------
+# -----------------
 $tokenResponse = Invoke-RestMethod -Method Post -Uri "$BaseUrl/sharing/rest/generateToken" -Body @{
     username = $Username
     password = $Password
@@ -57,9 +57,9 @@ if (-not $tokenResponse.token) {
 
 $Token = $tokenResponse.token
 
-# ----------------------------------------------------
+# ------------
 # PORTAL SELF
-# ----------------------------------------------------
+# ------------
 $portalSelf = Invoke-RestMethod -Method Get -Uri "$BaseUrl/sharing/rest/portals/self" -Body @{
     f="json"
     token=$Token
@@ -67,9 +67,9 @@ $portalSelf = Invoke-RestMethod -Method Get -Uri "$BaseUrl/sharing/rest/portals/
 $OrgId = $portalSelf.id
 
 
-# ----------------------------------------------------
-# HELPERS
-# ----------------------------------------------------
+# -----
+# FUNCS
+# -----
 
 function Get-GroupById($gid) {
     Invoke-RestMethod -Method Get -Uri "$BaseUrl/sharing/rest/community/groups/$gid" -Body @{
@@ -98,7 +98,7 @@ function Get-GroupUsers($gid) {
     return Invoke-RestMethod -Uri $uri -Method Post -Body $body
 }
 
-# Profile fetch (with fallback protection)
+# Profile fetch
 function Get-UserProfile($username) {
 
     $uri = "$BaseUrl/sharing/rest/community/users/$username"
@@ -110,7 +110,7 @@ function Get-UserProfile($username) {
     try {
         $response = Invoke-RestMethod -Uri $uri -Method Post -Body $body -ErrorAction Stop
 
-        # HTML → fallback to blank profile
+        # fallback to blank profile
         if ($response -is [string] -and $response -match "<html") {
             return @{
                 username = $username
@@ -150,9 +150,9 @@ function Clean-FileName([string]$text) {
 }
 
 
-# ----------------------------------------------------
+# ------------------
 # SEARCH GROUP MODE
-# ----------------------------------------------------
+# ------------------
 if ($SearchGroup) {
 
     if (-not $Name -and -not $ID) {
@@ -192,9 +192,9 @@ if ($SearchGroup) {
         }
     }
 
-    # -------------------------------------------------
-    # Fetch usernames only (Portal returns strings)
-    # -------------------------------------------------
+    # ---------------------
+    # Fetch usernames only 
+    # ---------------------
     $usersObj = Get-GroupUsers $group.id
     # Write-Host "==== RAW USERSOBJ RESPONSE ====" -ForegroundColor Yellow
     # $usersObj | ConvertTo-Json -Depth 10 | Write-Host
@@ -210,9 +210,9 @@ if ($SearchGroup) {
     $ownerProfile = Get-UserProfile $ownerUsername
 
 
-    # ----------------------------------------------------
+    # -------------------
     # GROUP CONTENT COUNT
-    # ----------------------------------------------------
+    # -------------------
     $contentCount = 0
     try {
         $contentResp = Invoke-RestMethod -Method Get -Uri "$BaseUrl/sharing/rest/content/groups/$($group.id)" -Body @{
@@ -225,9 +225,9 @@ if ($SearchGroup) {
         Write-Warning "Could not retrieve group content count."
     }
 
-    # ----------------------------------------------------
-    # PRINT SUMMARY (your required formatting)
-    # ----------------------------------------------------
+    # --------------
+    # PRINT SUMMARY
+    # --------------
     $createdString = Format-Epoch $group.created
 
     Write-Host ""
@@ -300,9 +300,9 @@ if ($SearchGroup) {
     }
 
 
-    # ----------------------------------------------------
+    # ------------------------
     # EXPORT CSV FILES (both)
-    # ----------------------------------------------------
+    # ------------------------
     if ($ExportCsv) {
 
         $safeTitle = Clean-FileName $group.title
@@ -328,9 +328,9 @@ if ($SearchGroup) {
 }
 
 
-# ----------------------------------------------------
-# CREATE GROUP MODE (unchanged)
-# ----------------------------------------------------
+# -------------------
+# CREATE GROUP MODE 
+# -------------------
 
 if ($CreateGroup) {
 
