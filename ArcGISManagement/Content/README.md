@@ -61,7 +61,7 @@ Generates a high‑level organizational content summary, including:
 - Admin user’s content count  
 - Oldest + newest content (AM/PM formatting)  
 - Sharing breakdown (Public, Org, Shared, Private)  
-- Top 5 users by content count  
+- Top 10 users by content count  
 - Content type distribution  
 - Optional TXT export to Downloads  
 - Automatic exclusion of Esri system accounts (`esri_*`, `esri-`, `esri.`)
