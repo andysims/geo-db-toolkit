@@ -10,7 +10,7 @@ This repository is organized into domain-specific folders:
 
 * **`Groups/`** - Scripts for auditing, creating, and managing ArcGIS groups and memberships.
 * **`Users/`** - Tools for user lifecycle management, profile audits, and identifying inactive/stale accounts.
-* **`Content/`** - *Coming Soon* (Tools for item auditing, sharing settings, and data management).
+* **`Content/`** - Tools for item auditing, sharing settings, and data management.
 
 ## Configuration
 
