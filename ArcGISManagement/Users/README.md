@@ -1,12 +1,67 @@
 # **ArcGIS Users (PowerShell)**
 
-This folder contains PowerShell scripts for managing, auditing, and analyzing ArcGIS Online (AGOL) and ArcGIS Enterprise Portal user accounts within the `ArcGISManagement` module.
+This folder contains PowerShell scripts and an optional PowerShell module for managing, auditing, and analyzing ArcGIS Online (AGOL) and ArcGIS Enterprise Portal user accounts within the `ArcGISManagement` toolkit.
 
 ## **Available Tools**
 
 - **Get-StaleUsers.ps1** — Identifies and exports inactive user accounts.  
 - **Find-ArcGISUser.ps1** — Searches for users by email or username and returns profile details.  
-- **Get-ArcGISUser.ps1** — Retrieves full details for a specific user, including license type, credits, and counts.
+- **Get-ArcGISUser.ps1** — Retrieves full details for a specific user, including license type, credits, and counts.  
+- **Users.psm1** — Optional module that exposes all user tools as importable cmdlets.
+
+---
+
+# **Using the Users Toolkit Module (Users.psm1)**
+
+The `Users.psm1` module provides a clean, unified interface for all user‑related scripts.  
+It does **not** modify the underlying `.ps1` files — it simply wraps them as cmdlets.
+
+## Folder Structure
+
+Place the module in the same folder as your scripts:
+
+```
+Users/
+  Users.psm1
+  Get-ArcGISUser.ps1
+  Find-ArcGISUser.ps1
+  Get-StaleUsers.ps1
+  .env
+```
+
+## Importing the Module
+
+```powershell
+Import-Module ./Users/Users.psm1 -Force
+```
+
+## Available Cmdlets
+
+After importing, the following commands become available:
+
+- **Get-ArcGISUser**  
+- **Find-ArcGISUser**  
+- **Get-StaleArcGISUsers**
+
+## Examples
+
+### Get a specific user
+
+```powershell
+Get-ArcGISUser -Source agol -Username "username"
+```
+
+### Search for a user by email
+
+```powershell
+Find-ArcGISUser -Source portal -Email "someone@example.com"
+```
+
+### Get stale users
+
+```powershell
+Get-StaleArcGISUsers -Source agol -ExportCsv
+```
 
 ---
 
@@ -15,9 +70,9 @@ This folder contains PowerShell scripts for managing, auditing, and analyzing Ar
 Identifies stale or inactive ArcGIS users (≥ 1 year since last login or never logged in).  
 Exports summary and detailed CSVs if requested.
 
-## Installation
+## Installation (Standalone)
 
-Place the module files in a folder named `StaleUsers`:
+Place the module files in a folder named `Users`:
 
 ```
 Users/
@@ -25,7 +80,7 @@ Users/
   .env
 ```
 
-## Importing the Module
+## Importing the Module (Standalone)
 
 ```powershell
 Import-Module ./Users/Get-StaleArcGISUsers.psm1 -Force
@@ -40,7 +95,7 @@ Fetches all users, filters stale accounts, classifies them, and optionally expor
 #### Parameters
 
 - **-Source** (Required)  
-  Environment to query. Values: `portal`, `agol`
+  `portal` or `agol`
 
 - **-ExportPath** (Optional)  
   Directory to export summary and classified CSV files.
@@ -50,21 +105,9 @@ Fetches all users, filters stale accounts, classifies them, and optionally expor
 
 ## Examples
 
-### Get stale users from Portal
-
 ```powershell
 Get-StaleArcGISUsers -Source portal
-```
-
-### Get stale users from AGOL and export summary + classified CSVs
-
-```powershell
 Get-StaleArcGISUsers -Source agol -ExportPath ./out
-```
-
-### Export only the raw stale user list
-
-```powershell
 Get-StaleArcGISUsers -Source portal -ExportCsv
 ```
 
@@ -80,18 +123,15 @@ Returns lightweight profile information and license type (AGOL only).
 - **-Source** (Required)  
   `portal` or `agol`
 
-- **-Email** (Optional, mutually exclusive with -Username)  
-  Exact email address to search for
-
-- **-Username** (Optional, mutually exclusive with -Email)  
-  Exact username to search for
+- **-Email** (Optional, exclusive with -Username)  
+- **-Username** (Optional, exclusive with -Email)
 
 ## Behavior
 
-- If **no users** match → prints a warning  
-- If **one user** matches → prints formatted details  
-- If **multiple users** match → prints a table  
-- Fetches AGOL license type via `/userLicenseType` endpoint  
+- No matches → warning  
+- One match → formatted details  
+- Multiple matches → table  
+- Fetches AGOL license type via `/userLicenseType`  
 - Portal users return `N/A` for license type
 
 ## Example
@@ -123,8 +163,7 @@ Retrieves **full details** for a specific user, including:
 - **-Source** (Required)  
   `portal` or `agol`
 
-- **-Username** (Required)  
-  Exact username to retrieve
+- **-Username** (Required)
 
 ## Example
 
