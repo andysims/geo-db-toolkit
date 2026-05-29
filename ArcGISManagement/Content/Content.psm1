@@ -31,7 +31,8 @@ function Get-NewArcGISItems {
         [ValidateSet("portal", "agol")]
         [string]$Source,
 
-        [int]$Days = 7
+        [int]$Days = 7,
+				[switch]$ExportCsv
     )
 
     & (Resolve-ContentScriptPath "Get-NewArcGISItems.ps1") @PSBoundParameters
