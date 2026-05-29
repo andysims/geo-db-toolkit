@@ -1,12 +1,12 @@
 function Get-StaleArcGISUsers {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory)]
-        [ValidateSet("portal","agol")]
+        [Parameter(Mandatory=$true)]
+        [ValidateSet("portal", "agol")]
         [string]$Source,
 
-        [string]$ExportPath,   # optional output directory
-        [switch]$ExportCsv     # export the raw stale user list
+        [string]$ExportPath,          # Optional: folder to export CSVs
+        [switch]$ExportCsv            # Optional: export raw CSV in current directory
     )
 
     # ---------------------------------------------------------
@@ -37,12 +37,13 @@ function Get-StaleArcGISUsers {
     # ---------------------------------------------------------
     # Token
     # ---------------------------------------------------------
+    Write-Host "Generating token..." -ForegroundColor Cyan
     $tokenResponse = Invoke-RestMethod -Method Post -Uri "$BaseUrl/sharing/rest/generateToken" -Body @{
         username = $Username
         password = $Password
         client   = "requestip"
         f        = "json"
-    }
+    } -ErrorAction Stop
 
     $Token = $tokenResponse.token
     if (-not $Token) {
@@ -52,6 +53,7 @@ function Get-StaleArcGISUsers {
     # ---------------------------------------------------------
     # Fetch all users (pagination)
     # ---------------------------------------------------------
+    Write-Host "Fetching users from $Source..." -ForegroundColor Cyan
     $AllUsers = @()
     $start = 1
 
@@ -61,7 +63,7 @@ function Get-StaleArcGISUsers {
             token = $Token
             start = $start
             num   = 100
-        }
+        } -ErrorAction Stop
 
         if ($page.users) {
             $AllUsers += $page.users
@@ -70,6 +72,8 @@ function Get-StaleArcGISUsers {
         if ($page.nextStart -eq -1) { break }
         $start = $page.nextStart
     }
+
+    Write-Host "Total users retrieved: $($AllUsers.Count)" -ForegroundColor Green
 
     # ---------------------------------------------------------
     # Filter stale users (1 year)
@@ -97,14 +101,12 @@ function Get-StaleArcGISUsers {
             f     = "json"
             token = $Token
         }
-        $itemCount = ($contentInfo.items | Measure-Object).Count
 
         # Group count
         $groupInfo = Invoke-RestMethod -Method Get -Uri "$BaseUrl/sharing/rest/community/users/$($u.username)" -Body @{
             f     = "json"
             token = $Token
         }
-        $groupCount = ($groupInfo.groups | Measure-Object).Count
 
         [PSCustomObject]@{
             Username      = $u.username
@@ -118,17 +120,17 @@ function Get-StaleArcGISUsers {
             UserLicense   = $u.userLicenseType
             Created       = if ($created) { $created.ToString("yyyy-MM-dd HH:mm") } else { "" }
             LastLogin     = if ($lastLogin) { $lastLogin.ToString("yyyy-MM-dd HH:mm") } else { "Never" }
-            ContentCount  = $itemCount
-            GroupCount    = $groupCount
+            ContentCount  = ($contentInfo.items | Measure-Object).Count
+            GroupCount    = ($groupInfo.groups | Measure-Object).Count
         }
     }
 
     # ---------------------------------------------------------
-    # Classification (Script 2 logic)
+    # Add classification
     # ---------------------------------------------------------
     foreach ($u in $Filtered) {
         if ($u.LastLogin -and $u.LastLogin -ne "Never") {
-            $loginDate = [datetime]$u.LastLogin
+            $loginDate = [datetime]::ParseExact($u.LastLogin, "yyyy-MM-dd HH:mm", $null)
             $u | Add-Member -NotePropertyName LastLoginDate -NotePropertyValue $loginDate
             $u | Add-Member -NotePropertyName DaysSinceLastLogin -NotePropertyValue ((Get-Date) - $loginDate).Days
         }
@@ -163,35 +165,30 @@ function Get-StaleArcGISUsers {
     # ---------------------------------------------------------
     # Summary
     # ---------------------------------------------------------
-    $total = $Filtered.Count
+    $totalUsers = $AllUsers.Count
+    $totalStale = $Filtered.Count
 
     $summary = @(
-        [PSCustomObject]@{
-            Category = "Never logged in"
-            Count    = ($Filtered | Where-Object { $_.StaleCategory -eq "Never logged in" }).Count
-            Percent  = if ($total -gt 0) { "{0:P1}" -f (($Filtered | Where-Object { $_.StaleCategory -eq "Never logged in" }).Count / $total) } else { "0%" }
-        }
-        [PSCustomObject]@{
-            Category = "1 year since last login"
-            Count    = ($Filtered | Where-Object { $_.StaleCategory -eq "1 year since last login" }).Count
-            Percent  = if ($total -gt 0) { "{0:P1}" -f (($Filtered | Where-Object { $_.StaleCategory -eq "1 year since last login" }).Count / $total) } else { "0%" }
-        }
-        [PSCustomObject]@{
-            Category = "1.5 to 2 years since last login"
-            Count    = ($Filtered | Where-Object { $_.StaleCategory -eq "1.5 to 2 years since last login" }).Count
-            Percent  = if ($total -gt 0) { "{0:P1}" -f (($Filtered | Where-Object { $_.StaleCategory -eq "1.5 to 2 years since last login" }).Count / $total) } else { "0%" }
-        }
-        [PSCustomObject]@{
-            Category = "More than 2 years since last login"
-            Count    = ($Filtered | Where-Object { $_.StaleCategory -eq "More than 2 years since last login" }).Count
-            Percent  = if ($total -gt 0) { "{0:P1}" -f (($Filtered | Where-Object { $_.StaleCategory -eq "More than 2 years since last login" }).Count / $total) } else { "0%" }
-        }
-        [PSCustomObject]@{
-            Category = "Total"
-            Count    = $total
-            Percent  = "100%"
-        }
+        [PSCustomObject]@{ Category = "Never logged in";                   Count = ($Filtered | Where-Object StaleCategory -eq "Never logged in").Count }
+        [PSCustomObject]@{ Category = "1 year since last login";           Count = ($Filtered | Where-Object StaleCategory -eq "1 year since last login").Count }
+        [PSCustomObject]@{ Category = "1.5 to 2 years since last login";   Count = ($Filtered | Where-Object StaleCategory -eq "1.5 to 2 years since last login").Count }
+        [PSCustomObject]@{ Category = "More than 2 years since last login"; Count = ($Filtered | Where-Object StaleCategory -eq "More than 2 years since last login").Count }
+        [PSCustomObject]@{ Category = "Total Stale Users";                 Count = $totalStale }
+        [PSCustomObject]@{ Category = "Total Users (all)";                 Count = $totalUsers }
     )
+
+    # Add percentages — all expressed as % of total users in the source
+    foreach ($item in $summary) {
+        if ($item.Category -eq "Total Users (all)") {
+            $item | Add-Member -NotePropertyName Percent -NotePropertyValue "100%"
+        }
+        elseif ($totalUsers -gt 0) {
+            $item | Add-Member -NotePropertyName Percent -NotePropertyValue ("{0:P1}" -f ($item.Count / $totalUsers))
+        }
+        else {
+            $item | Add-Member -NotePropertyName Percent -NotePropertyValue "N/A"
+        }
+    }
 
     # ---------------------------------------------------------
     # Output
@@ -199,31 +196,25 @@ function Get-StaleArcGISUsers {
     Write-Host "`nSummary Report" -ForegroundColor Cyan
     $summary | Format-Table -AutoSize
 
-    #Write-Host "`nStale Users" -ForegroundColor Cyan
-    #$Filtered | Format-Table Username, FullName, Email, LastLogin, DaysSinceLastLogin, StaleCategory -AutoSize
-
     # ---------------------------------------------------------
-    # Optional exports
+    # Exports
     # ---------------------------------------------------------
-    if ($ExportPath) {
-        if (-not (Test-Path $ExportPath)) {
-            New-Item -ItemType Directory -Path $ExportPath -Force | Out-Null
-        }
-
-        $summary | Export-Csv -NoTypeInformation -Path (Join-Path $ExportPath "$Source_summary.csv")
-        $Filtered | Export-Csv -NoTypeInformation -Path (Join-Path $ExportPath "$Source_classified.csv")
-
-        Write-Host "`nExported summary + classified CSVs to $ExportPath" -ForegroundColor Green
-    }
-
     if ($ExportCsv) {
         $date = (Get-Date).ToString("yyyyMMdd")
-        $file = "stale_${Source}_users_${date}.csv"
-        $Filtered | Export-Csv -NoTypeInformation -Path $file
-        Write-Host "Exported stale user CSV → $file"
-    }
+        $exportDir = if ($ExportPath) { $ExportPath } else { (New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path }
 
-    return $Filtered
+        if (-not (Test-Path $exportDir)) {
+            New-Item -ItemType Directory -Path $exportDir -Force | Out-Null
+        }
+
+        $summaryCsv = Join-Path $exportDir "${Source}_staleusers_summary_${date}.csv"
+        $detailCsv  = Join-Path $exportDir "${Source}_staleusers_${date}.csv"
+
+        $summary | Export-Csv -NoTypeInformation -Path $summaryCsv
+        $Filtered | Export-Csv -NoTypeInformation -Path $detailCsv
+
+        Write-Host "Exported CSVs to: $exportDir" -ForegroundColor Green
+    }
 }
 
 Export-ModuleMember -Function Get-StaleArcGISUsers
