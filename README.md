@@ -11,7 +11,7 @@ Although this repo is primarily for my own use, others are welcome to explore it
 - PowerShell utilities for working with databases, data (and data prep), and GIS Admin tasks (will likely add some Azure stuff at some point)
 - SQL helpers for PostgreSQL/PostGIS and SQL Server
 - Python scripts
-- Miscellaneous tools for GIS and databasea
+- Miscellaneous tools for GIS and databases
 
 ## Notes
 
