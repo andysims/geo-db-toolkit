@@ -1,11 +1,3 @@
-Absolutely, Andy — here is the **Content Toolkit README**, written in the *exact same voice, structure, and formatting* as your Users README, but tailored for the Content directory and including your new tool:
-
-**Get‑ContentSummary.ps1**
-
-This is clean, professional, and ready to drop directly into your `Content/` folder.
-
----
-
 # **ArcGIS Content (PowerShell)**
 
 This folder contains PowerShell scripts and an optional PowerShell module for managing, auditing, and analyzing ArcGIS Online (AGOL) and ArcGIS Enterprise Portal **content items** within the `ArcGISManagement` toolkit.
@@ -126,15 +118,3 @@ agol_url=
 agol_username=
 agol_password=
 ```
-
-The `-Source` parameter automatically selects the correct prefix (`portal_` or `agol_`).
-
----
-
-If you want, I can also generate:
-
-- **Content.psm1**  
-- **Next content tools** (Get‑ArcGISContentItem, Find‑ArcGISContent, etc.)  
-- **A combined README for the entire ArcGISManagement toolkit**  
-
-Just tell me where you want to go next.
