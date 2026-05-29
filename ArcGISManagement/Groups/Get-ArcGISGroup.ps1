@@ -300,8 +300,10 @@ if ($ExportCsv) {
     $safeTitle = Clean-FileName $group.title
     $dateTag   = (Get-Date).ToString("yyyyMMdd")
 
-    $minimalPath = "${safeTitle}_${dateTag}_minimal.csv"
-    $fullPath    = "${safeTitle}_${dateTag}_full.csv"
+    $DownloadsPath = (New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path
+
+    $minimalPath = "$DownloadsPath\${safeTitle}_${dateTag}_minimal.csv"
+    $fullPath    = "$DownloadsPath\${safeTitle}_${dateTag}_full.csv"
 
     # MINIMAL CSV
     $userProfiles |
