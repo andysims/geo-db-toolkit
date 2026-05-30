@@ -4,7 +4,7 @@ A small collection of data-focused utilities for working with tabular files, dat
 
 ## Subdirectories
 
-- **Modeling**  
+- **[Modeling](./Modeling/)**  
   Tools for schema inference, table modeling, and DDL generation.
 
 - **Profiling**  
