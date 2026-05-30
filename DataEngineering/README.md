@@ -4,22 +4,22 @@ A small collection of data-focused utilities for working with tabular files, dat
 
 ## Subdirectories
 
-- **[Modeling]**  
+- **Modeling**  
   Tools for schema inference, table modeling, and DDL generation.
 
-- **[Profiling]**  
+- **Profiling**  
   Utilities for scanning, summarizing, and profiling datasets.
 
-- **[Transform]**  
+- **Transform**  
   Format-to-format converters and lightweight ETL helpers.
 
-- **[Ingestion]**  
+- **Ingestion**  
   Scripts for loading or moving data into databases or storage systems.
 
-- **[Validation]**  
+- **Validation**  
   Tools for checking data quality, consistency, and rule compliance.
 
-- **[Utilities]**  
+- **Utilities**  
   Miscellaneous helpers that support data workflows.
 
 ## Notes
