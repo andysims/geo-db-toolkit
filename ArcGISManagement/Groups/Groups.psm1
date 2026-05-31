@@ -50,6 +50,28 @@ function Add-ArcGISGroupUsers {
 }
 
 # ---------------------------------------------------------
+# Remove-ArcGISGroupUsers
+# ---------------------------------------------------------
+function Remove-ArcGISGroupUsers {
+    [CmdletBinding()]
+    param(
+        [ValidateSet("portal", "agol")]
+        [string]$Source = "portal",
+
+        [Parameter(Mandatory=$true)]
+        [string]$GroupId,
+
+        [string]$User,
+        [string]$Users,
+        [string]$UserList,
+
+        [switch]$ExportCsv
+    )
+
+    & (Resolve-GroupScriptPath "Remove-ArcGISGroupUsers.ps1") @PSBoundParameters
+}
+
+# ---------------------------------------------------------
 # Get-ArcGISUserGroups
 # ---------------------------------------------------------
 function Get-ArcGISUserGroups {
@@ -68,4 +90,4 @@ function Get-ArcGISUserGroups {
     & (Resolve-GroupScriptPath "Get-ArcGISUserGroups.ps1") @PSBoundParameters
 }
 
-Export-ModuleMember -Function Get-ArcGISGroup, Add-ArcGISGroupUsers, Get-ArcGISUserGroups
+Export-ModuleMember -Function Get-ArcGISGroup, Add-ArcGISGroupUsers, Remove-ArcGISGroupUsers, Get-ArcGISUserGroups
