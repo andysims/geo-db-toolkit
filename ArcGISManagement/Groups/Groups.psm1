@@ -49,4 +49,23 @@ function Add-ArcGISGroupUsers {
     & (Resolve-GroupScriptPath "Add-ArcGISGroupUsers.ps1") @PSBoundParameters
 }
 
-Export-ModuleMember -Function Get-ArcGISGroup, Add-ArcGISGroupUsers
+# ---------------------------------------------------------
+# Get-ArcGISUserGroups
+# ---------------------------------------------------------
+function Get-ArcGISUserGroups {
+    [CmdletBinding()]
+    param(
+        [ValidateSet("portal", "agol")]
+        [string]$Source = "portal",
+
+        [string]$Username,
+        [string]$Email,
+        [string]$LastName,
+
+        [switch]$ExportCsv
+    )
+
+    & (Resolve-GroupScriptPath "Get-ArcGISUserGroups.ps1") @PSBoundParameters
+}
+
+Export-ModuleMember -Function Get-ArcGISGroup, Add-ArcGISGroupUsers, Get-ArcGISUserGroups
