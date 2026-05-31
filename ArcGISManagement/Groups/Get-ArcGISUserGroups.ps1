@@ -100,6 +100,7 @@ function Get-UserProfile($username) {
                 lastName = ""
                 created = $null
                 lastLogin = $null
+                groups = @()
             }
         }
 
@@ -113,14 +114,8 @@ function Get-UserProfile($username) {
             lastName = ""
             created = $null
             lastLogin = $null
+            groups = @()
         }
-    }
-}
-
-function Get-UserGroups($username) {
-    Invoke-RestMethod -Method Get -Uri "$BaseUrl/sharing/rest/community/users/$username/groups" -Body @{
-        f="json"
-        token=$Token
     }
 }
 
@@ -148,12 +143,29 @@ if ($searchResults.total -eq 0) {
     exit
 }
 
+# -------------------------
+# HANDLE AGOL/PORTAL QUIRKS
+# -------------------------
 $userChoice = $null
 
 if ($searchResults.total -eq 1) {
-    $userChoice = $searchResults.users[0]
+
+    if ($searchResults.users -and $searchResults.users.Count -gt 0) {
+        $userChoice = $searchResults.users[0]
+    }
+    else {
+        # AGOL sometimes hides user objects
+        $userChoice = @{ username = $Username }
+    }
 }
-else {
+elseif ($searchResults.total -gt 1) {
+
+    if (-not $searchResults.users) {
+        Write-Host "Multiple users found, but AGOL did not return user objects."
+        Write-Host "Try searching by exact username."
+        exit
+    }
+
     Write-Host "Multiple users found:"
     for ($i = 0; $i -lt $searchResults.users.Count; $i++) {
         Write-Host "$($i+1)) $($searchResults.users[$i].username) | $($searchResults.users[$i].fullName)"
@@ -165,7 +177,7 @@ else {
 $finalUsername = $userChoice.username
 
 # -------------------------
-# FETCH PROFILE
+# FETCH PROFILE (GROUPS COME FROM HERE)
 # -------------------------
 $profile = Get-UserProfile $finalUsername
 
@@ -173,15 +185,34 @@ $createdString = Format-Epoch $profile.created
 $lastLoginString = Format-Epoch $profile.lastLogin
 
 # -------------------------
-# FETCH USER GROUPS
+# GROUP CLASSIFICATION
 # -------------------------
-$groupData = Get-UserGroups $finalUsername
+$ownedGroups  = @()
+$adminGroups  = @()
+$memberGroups = @()
 
-$ownedGroups  = $groupData.owner
-$adminGroups  = $groupData.admin
-$memberGroups = $groupData.member
+foreach ($g in $profile.groups) {
 
-$totalGroups = $ownedGroups.Count + $adminGroups.Count + $memberGroups.Count
+    if ($g.owner -eq $finalUsername) {
+        $ownedGroups += $g
+        continue
+    }
+
+    if ($g.userMembership -and $g.userMembership.memberType) {
+        if ($g.userMembership.memberType -eq "admin") {
+            $adminGroups += $g
+        }
+        elseif ($g.userMembership.memberType -eq "member") {
+            $memberGroups += $g
+        }
+        continue
+    }
+
+    # Default: treat missing membership as "member"
+    $memberGroups += $g
+}
+
+$totalGroups = $profile.groups.Count
 
 # --------------
 # PRINT SUMMARY
